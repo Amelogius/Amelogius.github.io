@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
-import { searchGifs, isTenorConfigured } from "@/lib/tenor";
+import { searchGifs, isKlipyConfigured } from "@/lib/klipy";
 import type { Gif } from "@/lib/types";
 import { Spinner } from "./Spinner";
 
@@ -18,7 +18,7 @@ export default function GifPicker({ onSelect, onClose }: Props) {
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (!isTenorConfigured) {
+    if (!isKlipyConfigured) {
       setLoading(false);
       return;
     }
@@ -48,7 +48,7 @@ export default function GifPicker({ onSelect, onClose }: Props) {
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search Tenor GIFs…"
+              placeholder="Search KLIPY"
               className="input-field pl-9 py-2"
             />
           </div>
@@ -62,13 +62,13 @@ export default function GifPicker({ onSelect, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3">
-          {!isTenorConfigured ? (
+          {!isKlipyConfigured ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-slate-400">
-              <p className="font-semibold text-slate-200">Tenor not configured</p>
+              <p className="font-semibold text-slate-200">KLIPY not configured</p>
               <p className="text-sm">
                 Add{" "}
                 <code className="rounded bg-slate-800 px-1 text-neon">
-                  NEXT_PUBLIC_TENOR_API_KEY
+                  NEXT_PUBLIC_KLIPY_API_KEY
                 </code>{" "}
                 to your <code className="text-neon">.env.local</code> to enable
                 GIF search.
@@ -102,7 +102,7 @@ export default function GifPicker({ onSelect, onClose }: Props) {
         </div>
 
         <div className="border-t border-slate-800 p-2 text-center text-[11px] text-slate-500">
-          Powered by Tenor
+          Powered by KLIPY
         </div>
       </div>
     </div>

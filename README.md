@@ -15,7 +15,7 @@ as a fully static site (e.g. **GitHub Pages** — this repo is wired up for `ame
 - **Auth** (email + password) via Supabase Auth.
 - **Onboarding flow** — new users must pick a unique `@handle` and display name before entering.
 - **Feed** with two tabs: **Global** (chronological) and **Following**.
-- **Composer** with text, **image upload** (Supabase Storage) and **GIF search** (Tenor API).
+- **Composer** with text, **image upload** (Supabase Storage) and **GIF search** (KLIPY API).
 - **Like** & retweet interactions (likes are persisted in the DB).
 - **Search page** — live client-side user search + derived **Trending topics**.
 - **Profiles** — banner, avatar, bio, follower/following counts, follow/unfollow, user's chirps.
@@ -52,7 +52,7 @@ cp .env.local.example .env.local
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
-NEXT_PUBLIC_TENOR_API_KEY=your-tenor-api-key
+NEXT_PUBLIC_KLIPY_API_KEY=your-klipy-api-key
 ```
 
 > All variables are `NEXT_PUBLIC_*` because the app is 100% client-side. Only use the **anon**
@@ -66,10 +66,10 @@ It creates the tables, indexes, RLS policies and the public `media` storage buck
 In **Supabase → Authentication → Providers → Email**, you can disable "Confirm email" during
 development so sign-up flows straight into onboarding.
 
-### 4. Get a Tenor API key (for GIFs)
+### 4. Get a KLIPY API key (for GIFs)
 
-Create a key at the [Google / Tenor developer console](https://developers.google.com/tenor/guides/quickstart)
-and put it in `NEXT_PUBLIC_TENOR_API_KEY`. (GIF search degrades gracefully if omitted.)
+Create a key at the [KLIPY Partner Panel](https://partner.klipy.com)
+and put it in `NEXT_PUBLIC_KLIPY_API_KEY`. (GIF search degrades gracefully if omitted.)
 
 ### 5. Run it
 
@@ -123,7 +123,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_TENOR_API_KEY: ${{ secrets.NEXT_PUBLIC_TENOR_API_KEY }}
+          NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with: { path: out }
   deploy:
@@ -157,7 +157,7 @@ lib/
   supabaseClient.js           Shared Supabase browser client
   db.ts                       All queries/mutations (profiles, chirps, likes, follows, trends)
   AuthContext.tsx             Session + profile state (useState/useEffect only)
-  tenor.ts  time.ts  types.ts
+  klipy.ts  time.ts  types.ts
 supabase/
   schema.sql                  Tables, indexes, RLS, storage bucket
 ```

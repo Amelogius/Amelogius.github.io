@@ -91,7 +91,7 @@ function SetupNotice() {
         <pre className="overflow-x-auto rounded-xl bg-slate-950/70 p-4 text-left text-xs text-slate-300">
 {`NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-NEXT_PUBLIC_TENOR_API_KEY=...`}
+NEXT_PUBLIC_KLIPY_API_KEY=...`}
         </pre>
         <p className="mt-4 text-sm text-slate-500">
           Then run the SQL in{" "}
