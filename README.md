@@ -1,26 +1,26 @@
 # 🐦 Chirp
 
 A stylish, **cyberpunk / minimal-dark** Twitter clone built with **Next.js 14 (App Router)**,
-**Supabase**, **Tailwind CSS** and **Lucide** icons.
+**Convex**, **Tailwind CSS** and **Lucide** icons.
 
 Everything is **client-side only** and the app is built with `output: 'export'`, so it deploys
 as a fully static site (e.g. **GitHub Pages** — this repo is wired up for `amelogius.me`).
 
-![theme](https://img.shields.io/badge/theme-cyberpunk-00F0FF) ![stack](https://img.shields.io/badge/Next.js-14-black) ![db](https://img.shields.io/badge/Supabase-3ECF8E)
+![theme](https://img.shields.io/badge/theme-cyberpunk-00F0FF) ![stack](https://img.shields.io/badge/Next.js-14-black) ![db](https://img.shields.io/badge/Convex-FF6B6B)
 
 ---
 
 ## ✨ Features
 
-- **Auth** (email + password) via Supabase Auth.
+- **Auth** (email + password) via [Convex Auth](https://labs.convex.dev/auth).
 - **Onboarding flow** — new users must pick a unique `@handle` and display name before entering.
 - **Feed** with two tabs: **Global** (chronological) and **Following**.
-- **Composer** with text, **image upload** (Supabase Storage) and **GIF search** (KLIPY API).
+- **Composer** with text, **image upload** (Convex file storage) and **GIF search** (KLIPY API).
 - **Like** & retweet interactions (likes are persisted in the DB).
 - **Search page** — live client-side user search + derived **Trending topics**.
 - **Profiles** — banner, avatar, bio, follower/following counts, follow/unfollow, user's chirps.
 - **3-column responsive layout** with glassmorphism, neon accents, and springy micro-animations.
-- Near-realtime feed via lightweight polling (works on static hosting).
+- **Live reactive feeds** via Convex subscriptions (no polling needed).
 
 ## 🎨 Design system
 
@@ -50,21 +50,23 @@ cp .env.local.example .env.local
 ```
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 NEXT_PUBLIC_KLIPY_API_KEY=your-klipy-api-key
 ```
 
-> All variables are `NEXT_PUBLIC_*` because the app is 100% client-side. Only use the **anon**
-> Supabase key — data is protected by Row Level Security, not by hiding the key.
+> `NEXT_PUBLIC_CONVEX_URL` is exposed to the browser because the app is 100% client-side.
+> Auth and data access rules are enforced by Convex functions on the backend.
 
-### 3. Set up the database
+### 3. Set up Convex
 
-Open the **Supabase SQL Editor** and run the contents of [`supabase/schema.sql`](./supabase/schema.sql).
-It creates the tables, indexes, RLS policies and the public `media` storage bucket.
+Create a Convex project and deploy the schema/functions:
 
-In **Supabase → Authentication → Providers → Email**, you can disable "Confirm email" during
-development so sign-up flows straight into onboarding.
+```bash
+npx convex dev
+```
+
+This starts the Convex dev server, deploys `convex/` to your project, and writes
+`NEXT_PUBLIC_CONVEX_URL` into `.env.local`. Keep it running alongside the Next.js dev server.
 
 ### 4. Get a KLIPY API key (for GIFs)
 
@@ -74,7 +76,7 @@ and put it in `NEXT_PUBLIC_KLIPY_API_KEY`. (GIF search degrades gracefully if om
 ### 5. Run it
 
 ```bash
-npm run dev      # http://localhost:3000
+npm run dev      # starts Next.js + Convex in parallel → http://localhost:3000
 npm run build    # static export into ./out
 ```
 
@@ -83,13 +85,16 @@ npm run build    # static export into ./out
 ## 🗄️ Database schema
 
 ```text
-profiles ( id PK → auth.users, username UNIQUE, display_name, avatar_url, banner_url, bio, created_at )
-chirps   ( id PK, user_id → profiles, text, media_url, is_gif, created_at )
-follows  ( follower_id → profiles, following_id → profiles, PK(follower_id, following_id) )
-likes    ( user_id → profiles, chirp_id → chirps, PK(user_id, chirp_id) )
+profiles ( userId → users, username UNIQUE, displayName, avatarUrl, bannerUrl, bio )
+chirps   ( userId → users, text, mediaUrl, isGif )
+follows  ( followerId → users, followingId → users )
+likes    ( userId → users, chirpId → chirps )
 ```
 
-All tables have RLS enabled: everything is world-readable, but you may only write your own rows.
+Auth tables (`users`, sessions, etc.) come from Convex Auth's `authTables`.
+
+Access control is enforced in Convex mutations/queries — reads are public, writes require
+authentication and ownership checks.
 
 ---
 
@@ -98,41 +103,23 @@ All tables have RLS enabled: everything is world-readable, but you may only writ
 `next.config.mjs` already sets `output: 'export'`, `trailingSlash: true` and unoptimized images.
 A build produces a static `out/` folder.
 
-Because Supabase usernames are created at runtime, the dynamic route `/profile/[username]` cannot
+Because usernames are created at runtime, the dynamic route `/profile/[username]` cannot
 be pre-rendered. Instead, `app/not-found.tsx` acts as an **SPA fallback**: GitHub Pages serves it
 as `404.html` for any unknown path, and it re-renders the correct profile from the URL on the client.
 
 A `.nojekyll` file and a `CNAME` (`amelogius.me`) are included.
 
-A minimal GitHub Actions workflow:
+The included GitHub Actions workflow deploys Convex functions and builds the static site:
 
 ```yaml
-name: Deploy
-on:
-  push: { branches: [main] }
-permissions: { contents: read, pages: write, id-token: write }
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
-      - run: npm ci
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: out }
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: { name: github-pages }
-    steps:
-      - uses: actions/deploy-pages@v4
+- run: npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL
+  env:
+    CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
 ```
+
+Set up a [Convex deploy key](https://docs.convex.dev/production/hosting/) as the
+`CONVEX_DEPLOY_KEY` GitHub secret.
 
 ---
 
@@ -140,7 +127,7 @@ jobs:
 
 ```
 app/
-  layout.tsx                  Root layout + AuthProvider
+  layout.tsx                  Root layout + Convex + Auth providers
   page.tsx                    Home feed
   login/page.tsx              Auth (login / register)
   search/page.tsx             Explore: user search + trends
@@ -153,14 +140,16 @@ components/
   Feed.tsx     ChirpCard.tsx     Composer.tsx  ComposeModal.tsx
   GifPicker.tsx  ProfileView.tsx  Onboarding.tsx
   Avatar.tsx   Spinner.tsx
+convex/
+  schema.ts                   Tables + Convex Auth tables
+  auth.ts  http.ts             Convex Auth (password provider)
+  profiles.ts  chirps.ts       Queries & mutations
+  follows.ts  trends.ts  files.ts  users.ts
 lib/
-  supabaseClient.js           Shared Supabase browser client
-  db.ts                       All queries/mutations (profiles, chirps, likes, follows, trends)
-  AuthContext.tsx             Session + profile state (useState/useEffect only)
-  klipy.ts  time.ts  types.ts
-supabase/
-  schema.sql                  Tables, indexes, RLS, storage bucket
+  ConvexClientProvider.tsx    Convex + ConvexAuth provider
+  AuthContext.tsx             Session + profile state
+  convexErrors.ts  klipy.ts  time.ts  types.ts
 ```
 
-State management uses **only** standard React hooks (`useState`, `useEffect`) plus a small
-Context for the auth session — no external state libraries.
+State management uses React hooks plus Convex's reactive `useQuery` / `useMutation` hooks
+for live data, and a small Context for auth session state.

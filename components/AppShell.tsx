@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { isSupabaseConfigured } from "@/lib/supabaseClient";
+import { isConvexConfigured } from "@/lib/ConvexClientProvider";
 import Sidebar from "./Sidebar";
 import RightSidebar from "./RightSidebar";
 import BottomNav from "./BottomNav";
@@ -13,9 +13,7 @@ import ComposeModal from "./ComposeModal";
 
 type Props = {
   children: ReactNode;
-  // Some pages (e.g. profile) are public and shouldn't force a login redirect.
   requireAuth?: boolean;
-  // Hide the right sidebar (e.g. the dedicated search page renders its own).
   hideRightSidebar?: boolean;
 };
 
@@ -34,7 +32,7 @@ export default function AppShell({
     }
   }, [loading, requireAuth, user, router]);
 
-  if (!isSupabaseConfigured) {
+  if (!isConvexConfigured) {
     return <SetupNotice />;
   }
 
@@ -81,7 +79,7 @@ function SetupNotice() {
       <div className="glass-strong w-full max-w-lg rounded-3xl p-8 text-center">
         <h1 className="mb-2 text-2xl font-black neon-text">Chirp needs setup</h1>
         <p className="mb-4 text-slate-300">
-          Add your Supabase credentials to start. Copy{" "}
+          Add your Convex deployment URL to start. Copy{" "}
           <code className="rounded bg-slate-800 px-1 text-neon">
             .env.local.example
           </code>{" "}
@@ -89,14 +87,12 @@ function SetupNotice() {
           and fill in:
         </p>
         <pre className="overflow-x-auto rounded-xl bg-slate-950/70 p-4 text-left text-xs text-slate-300">
-{`NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+{`NEXT_PUBLIC_CONVEX_URL=...
 NEXT_PUBLIC_KLIPY_API_KEY=...`}
         </pre>
         <p className="mt-4 text-sm text-slate-500">
-          Then run the SQL in{" "}
-          <code className="text-neon">supabase/schema.sql</code> and restart the
-          dev server.
+          Run <code className="text-neon">npx convex dev</code> to deploy the
+          backend schema, then restart the dev server.
         </p>
       </div>
     </div>

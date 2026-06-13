@@ -4,32 +4,28 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, TrendingUp, Hash } from "lucide-react";
-import { getTrends, searchProfiles, type Trend } from "@/lib/db";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 
 export default function RightSidebar() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Profile[]>([]);
-  const [trends, setTrends] = useState<Trend[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  useEffect(() => {
-    getTrends(6).then(setTrends);
-  }, []);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const trends = useQuery(api.trends.get, { limit: 6 });
+  const results = useQuery(
+    api.profiles.search,
+    debouncedQuery.trim() ? { query: debouncedQuery } : "skip"
+  ) as Profile[] | undefined;
 
   useEffect(() => {
     const q = query.trim();
     if (!q) {
-      setResults([]);
+      setDebouncedQuery("");
       return;
     }
-    setSearching(true);
-    const t = setTimeout(async () => {
-      setResults(await searchProfiles(q));
-      setSearching(false);
-    }, 300);
+    const t = setTimeout(() => setDebouncedQuery(q), 300);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -37,6 +33,8 @@ export default function RightSidebar() {
     e.preventDefault();
     if (query.trim()) router.push(`/search/?q=${encodeURIComponent(query.trim())}`);
   }
+
+  const searching = Boolean(debouncedQuery.trim()) && results === undefined;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-80 shrink-0 flex-col gap-4 overflow-y-auto py-4 pl-4 lg:flex">
@@ -55,10 +53,10 @@ export default function RightSidebar() {
           {searching && (
             <p className="px-4 py-3 text-sm text-slate-500">Searching…</p>
           )}
-          {!searching && results.length === 0 && (
+          {!searching && results && results.length === 0 && (
             <p className="px-4 py-3 text-sm text-slate-500">No users found.</p>
           )}
-          {results.map((p) => (
+          {results?.map((p) => (
             <Link
               key={p.id}
               href={`/profile/${p.username}/`}
@@ -80,7 +78,7 @@ export default function RightSidebar() {
         <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-white">
           <TrendingUp className="h-5 w-5 text-neon" /> Trending
         </h2>
-        {trends.length === 0 ? (
+        {!trends || trends.length === 0 ? (
           <p className="text-sm text-slate-500">
             No trends yet — start chirping with #hashtags!
           </p>
@@ -109,7 +107,7 @@ export default function RightSidebar() {
       <div className="glass rounded-2xl p-4 text-xs leading-relaxed text-slate-500">
         <p className="mb-1 font-semibold text-slate-300">Chirp</p>
         <p>
-          A neon-soaked microblog built with Next.js, Supabase & Tailwind. Static
+          A neon-soaked microblog built with Next.js, Convex & Tailwind. Static
           export ready.
         </p>
       </div>

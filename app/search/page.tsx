@@ -4,39 +4,38 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Search as SearchIcon, TrendingUp, Hash, BadgeCheck } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import AppShell from "@/components/AppShell";
 import Avatar from "@/components/Avatar";
 import { Spinner } from "@/components/Spinner";
-import { searchProfiles, getTrends, type Trend } from "@/lib/db";
 import type { Profile } from "@/lib/types";
 
 function SearchInner() {
   const params = useSearchParams();
   const initial = params.get("q") ?? "";
   const [query, setQuery] = useState(initial);
-  const [results, setResults] = useState<Profile[]>([]);
-  const [trends, setTrends] = useState<Trend[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(initial);
   const [touched, setTouched] = useState(Boolean(initial));
 
-  useEffect(() => {
-    getTrends(10).then(setTrends);
-  }, []);
+  const trends = useQuery(api.trends.get, { limit: 10 });
+  const results = useQuery(
+    api.profiles.search,
+    debouncedQuery.trim() ? { query: debouncedQuery } : "skip"
+  ) as Profile[] | undefined;
 
   useEffect(() => {
     const q = query.trim();
     if (!q) {
-      setResults([]);
+      setDebouncedQuery("");
       return;
     }
-    setLoading(true);
     setTouched(true);
-    const t = setTimeout(async () => {
-      setResults(await searchProfiles(q));
-      setLoading(false);
-    }, 250);
+    const t = setTimeout(() => setDebouncedQuery(q), 250);
     return () => clearTimeout(t);
   }, [query]);
+
+  const loading = Boolean(debouncedQuery.trim()) && results === undefined;
 
   return (
     <div>
@@ -59,7 +58,7 @@ function SearchInner() {
             <TrendingUp className="h-5 w-5 text-neon" /> Trending now
           </h2>
           <div className="glass overflow-hidden rounded-2xl">
-            {trends.length === 0 ? (
+            {!trends || trends.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-slate-500">
                 No trends yet — get chirping with #hashtags!
               </p>
@@ -95,12 +94,12 @@ function SearchInner() {
             <div className="flex justify-center py-10">
               <Spinner size={28} />
             </div>
-          ) : results.length === 0 ? (
+          ) : results && results.length === 0 ? (
             <p className="px-6 py-10 text-center text-slate-500">
               No users match “{query}”.
             </p>
           ) : (
-            results.map((p) => (
+            results?.map((p) => (
               <Link
                 key={p.id}
                 href={`/profile/${p.username}/`}

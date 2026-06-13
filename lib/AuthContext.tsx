@@ -3,22 +3,23 @@
 import {
   createContext,
   useContext,
-  useEffect,
-  useState,
   useCallback,
   ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "./supabaseClient";
-import { getProfileById } from "./db";
+import { useConvexAuth, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { Profile } from "./types";
+
+type AuthUser = {
+  id: Id<"users">;
+};
 
 type AuthState = {
   loading: boolean;
-  session: Session | null;
-  user: User | null;
+  user: AuthUser | null;
   profile: Profile | null;
-  // True when authenticated but no profile row exists yet (onboarding needed).
   needsOnboarding: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -27,60 +28,35 @@ type AuthState = {
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileChecked, setProfileChecked] = useState(false);
+  const { isLoading, isAuthenticated } = useConvexAuth();
+  const { signOut: authSignOut } = useAuthActions();
+  const userId = useQuery(api.users.current);
+  const profile = useQuery(
+    api.profiles.getByUserId,
+    userId ? { userId } : "skip"
+  );
 
-  const loadProfile = useCallback(async (userId: string | undefined) => {
-    if (!userId) {
-      setProfile(null);
-      setProfileChecked(true);
-      return;
-    }
-    const p = await getProfileById(userId);
-    setProfile(p);
-    setProfileChecked(true);
-  }, []);
+  const authLoading =
+    isLoading || (isAuthenticated && userId === undefined);
+  const profileLoading = Boolean(userId) && profile === undefined;
+  const loading = authLoading || profileLoading;
 
   const refreshProfile = useCallback(async () => {
-    await loadProfile(session?.user?.id);
-  }, [loadProfile, session?.user?.id]);
-
-  useEffect(() => {
-    let active = true;
-
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      await loadProfile(data.session?.user?.id);
-      setLoading(false);
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, s) => {
-      if (!active) return;
-      setSession(s);
-      setProfileChecked(false);
-      await loadProfile(s?.user?.id);
-    });
-
-    return () => {
-      active = false;
-      sub.subscription.unsubscribe();
-    };
-  }, [loadProfile]);
+    // Convex queries refresh reactively; this exists for API compatibility.
+  }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setProfile(null);
-  }, []);
+    await authSignOut();
+  }, [authSignOut]);
+
+  const user =
+    isAuthenticated && userId ? { id: userId } : null;
 
   const value: AuthState = {
     loading,
-    session,
-    user: session?.user ?? null,
-    profile,
-    needsOnboarding: Boolean(session?.user) && profileChecked && !profile,
+    user,
+    profile: profile ?? null,
+    needsOnboarding: Boolean(user) && !loading && profile === null,
     refreshProfile,
     signOut,
   };

@@ -1,46 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { Globe, Users, RefreshCw } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/lib/AuthContext";
-import { getGlobalFeed, getFollowingFeed } from "@/lib/db";
 import type { Chirp } from "@/lib/types";
 import Composer from "./Composer";
 import ChirpCard from "./ChirpCard";
 import { ChirpSkeleton } from "./Spinner";
+import { useState } from "react";
 
 type Tab = "global" | "following";
 
 export default function Feed() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("global");
-  const [chirps, setChirps] = useState<Chirp[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    let data: Chirp[];
-    if (tab === "following" && user) {
-      data = await getFollowingFeed(user.id);
-    } else {
-      data = await getGlobalFeed(user?.id);
-    }
-    setChirps(data);
-    setLoading(false);
-  }, [tab, user]);
+  const globalFeed = useQuery(api.chirps.getGlobalFeed, {
+    currentUserId: user?.id,
+  });
+  const followingFeed = useQuery(
+    api.chirps.getFollowingFeed,
+    tab === "following" && user ? { currentUserId: user.id } : "skip"
+  );
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Lightweight polling for near-realtime updates (works with static export).
-  useEffect(() => {
-    const id = setInterval(load, 20000);
-    return () => clearInterval(id);
-  }, [load]);
+  const chirps = (tab === "following" ? followingFeed : globalFeed) as
+    | Chirp[]
+    | undefined;
+  const loading = chirps === undefined;
 
   function handleDeleted(chirpId: string) {
-    setChirps((prev) => prev.filter((c) => c.id !== chirpId));
+    // Convex queries update reactively; local filter is optional.
+    void chirpId;
   }
 
   return (
@@ -48,7 +39,7 @@ export default function Feed() {
       <header className="glass-strong sticky top-0 z-30 flex items-center justify-between px-4 py-3">
         <h1 className="text-xl font-black neon-text">Home</h1>
         <button
-          onClick={load}
+          onClick={() => window.location.reload()}
           className="rounded-full p-2 text-slate-400 transition hover:bg-slate-800 hover:text-neon active:rotate-180"
           aria-label="Refresh"
         >
@@ -71,7 +62,7 @@ export default function Feed() {
         />
       </div>
 
-      {user && <Composer onPosted={load} />}
+      {user && <Composer />}
 
       {loading ? (
         <div>

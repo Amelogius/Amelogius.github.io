@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Heart, Repeat2, MessageCircle, Share, Trash2, BadgeCheck } from "lucide-react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { Chirp } from "@/lib/types";
 import { useAuth } from "@/lib/AuthContext";
-import { likeChirp, unlikeChirp, deleteChirp } from "@/lib/db";
 import { timeAgo } from "@/lib/time";
 import Avatar from "./Avatar";
 
@@ -16,6 +18,9 @@ type Props = {
 
 export default function ChirpCard({ chirp, onDeleted }: Props) {
   const { user } = useAuth();
+  const likeChirp = useMutation(api.chirps.like);
+  const unlikeChirp = useMutation(api.chirps.unlike);
+  const deleteChirp = useMutation(api.chirps.remove);
   const [liked, setLiked] = useState(Boolean(chirp.liked_by_me));
   const [likeCount, setLikeCount] = useState(chirp.like_count ?? 0);
   const [retweeted, setRetweeted] = useState(false);
@@ -32,10 +37,10 @@ export default function ChirpCard({ chirp, onDeleted }: Props) {
     setLikeCount((c) => c + (next ? 1 : -1));
     setPopKey((k) => k + 1);
     try {
-      if (next) await likeChirp(user.id, chirp.id);
-      else await unlikeChirp(user.id, chirp.id);
+      const chirpId = chirp.id as Id<"chirps">;
+      if (next) await likeChirp({ chirpId });
+      else await unlikeChirp({ chirpId });
     } catch {
-      // revert on failure
       setLiked(!next);
       setLikeCount((c) => c + (next ? -1 : 1));
     }
@@ -44,7 +49,7 @@ export default function ChirpCard({ chirp, onDeleted }: Props) {
   async function handleDelete() {
     if (!isMine) return;
     setDeleting(true);
-    await deleteChirp(chirp.id);
+    await deleteChirp({ chirpId: chirp.id as Id<"chirps"> });
     onDeleted?.(chirp.id);
   }
 

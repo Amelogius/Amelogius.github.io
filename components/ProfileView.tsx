@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -9,16 +9,11 @@ import {
   BadgeCheck,
   Settings2,
 } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/lib/AuthContext";
-import {
-  getProfileByUsername,
-  getUserChirps,
-  getFollowCounts,
-  isFollowing,
-  followUser,
-  unfollowUser,
-} from "@/lib/db";
-import type { Chirp, Profile } from "@/lib/types";
+import type { Chirp } from "@/lib/types";
 import Avatar from "./Avatar";
 import ChirpCard from "./ChirpCard";
 import { ChirpSkeleton, Spinner } from "./Spinner";
@@ -26,61 +21,44 @@ import { ChirpSkeleton, Spinner } from "./Spinner";
 export default function ProfileView({ username }: { username: string }) {
   const { user, profile: me } = useAuth();
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [chirps, setChirps] = useState<Chirp[]>([]);
-  const [counts, setCounts] = useState({ followers: 0, following: 0 });
-  const [following, setFollowing] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const followUser = useMutation(api.follows.follow);
+  const unfollowUser = useMutation(api.follows.unfollow);
   const [busy, setBusy] = useState(false);
-  const [notFound, setNotFound] = useState(false);
 
+  const profile = useQuery(api.profiles.getByUsername, { username });
+  const chirps = useQuery(
+    api.chirps.getByUser,
+    profile ? { userId: profile.id as Id<"users">, currentUserId: user?.id } : "skip"
+  ) as Chirp[] | undefined;
+  const counts = useQuery(
+    api.follows.getCounts,
+    profile ? { userId: profile.id as Id<"users"> } : "skip"
+  );
+  const following = useQuery(
+    api.follows.isFollowing,
+    user && profile && user.id !== profile.id
+      ? { followerId: user.id, followingId: profile.id as Id<"users"> }
+      : "skip"
+  );
+
+  const loading = profile === undefined;
+  const notFound = profile === null;
   const isMe = me?.username?.toLowerCase() === username.toLowerCase();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setNotFound(false);
-    const p = await getProfileByUsername(username);
-    if (!p) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-    setProfile(p);
-    const [userChirps, followCounts] = await Promise.all([
-      getUserChirps(p.id, user?.id),
-      getFollowCounts(p.id),
-    ]);
-    setChirps(userChirps);
-    setCounts(followCounts);
-    if (user && user.id !== p.id) {
-      setFollowing(await isFollowing(user.id, p.id));
-    }
-    setLoading(false);
-  }, [username, user]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   async function toggleFollow() {
     if (!user || !profile) return;
     setBusy(true);
-    const next = !following;
-    setFollowing(next);
-    setCounts((c) => ({ ...c, followers: c.followers + (next ? 1 : -1) }));
     try {
-      if (next) await followUser(user.id, profile.id);
-      else await unfollowUser(user.id, profile.id);
-    } catch {
-      setFollowing(!next);
-      setCounts((c) => ({ ...c, followers: c.followers + (next ? -1 : 1) }));
+      const followingId = profile.id as Id<"users">;
+      if (following) await unfollowUser({ followingId });
+      else await followUser({ followingId });
     } finally {
       setBusy(false);
     }
   }
 
   function handleDeleted(id: string) {
-    setChirps((prev) => prev.filter((c) => c.id !== id));
+    void id;
   }
 
   if (notFound) {
@@ -110,12 +88,11 @@ export default function ProfileView({ username }: { username: string }) {
             {loading ? "Profile" : profile?.display_name}
           </p>
           {!loading && (
-            <p className="text-xs text-slate-500">{chirps.length} chirps</p>
+            <p className="text-xs text-slate-500">{chirps?.length ?? 0} chirps</p>
           )}
         </div>
       </header>
 
-      {/* Banner */}
       <div className="relative h-40 w-full bg-gradient-to-br from-violet/40 via-slate-900 to-neon/30 sm:h-52">
         {profile?.banner_url && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -191,11 +168,11 @@ export default function ProfileView({ username }: { username: string }) {
             </div>
             <div className="mt-3 flex gap-5 text-sm">
               <span className="text-slate-400">
-                <span className="font-bold text-white">{counts.following}</span>{" "}
+                <span className="font-bold text-white">{counts?.following ?? 0}</span>{" "}
                 Following
               </span>
               <span className="text-slate-400">
-                <span className="font-bold text-white">{counts.followers}</span>{" "}
+                <span className="font-bold text-white">{counts?.followers ?? 0}</span>{" "}
                 Followers
               </span>
             </div>
@@ -204,7 +181,7 @@ export default function ProfileView({ username }: { username: string }) {
       </div>
 
       <div className="border-t border-slate-800">
-        {loading ? (
+        {loading || chirps === undefined ? (
           Array.from({ length: 3 }).map((_, i) => <ChirpSkeleton key={i} />)
         ) : chirps.length === 0 ? (
           <p className="px-6 py-16 text-center text-slate-500">

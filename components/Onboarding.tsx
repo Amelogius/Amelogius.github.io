@@ -2,33 +2,30 @@
 
 import { useState } from "react";
 import { Feather, AtSign, Check, X } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/lib/AuthContext";
-import { createProfile, isUsernameAvailable } from "@/lib/db";
+import { convexErrorMessage } from "@/lib/convexErrors";
 import { Spinner } from "./Spinner";
 
 const HANDLE_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 export default function Onboarding() {
-  const { user, refreshProfile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const createProfile = useMutation(api.profiles.create);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [available, setAvailable] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const validFormat = HANDLE_RE.test(username);
-
-  async function checkHandle(value: string) {
-    setUsername(value);
-    setAvailable(null);
-    if (!HANDLE_RE.test(value)) return;
-    setChecking(true);
-    const ok = await isUsernameAvailable(value);
-    setAvailable(ok);
-    setChecking(false);
-  }
+  const availability = useQuery(
+    api.profiles.isUsernameAvailable,
+    validFormat ? { username } : "skip"
+  );
+  const checking = validFormat && availability === undefined;
+  const available = validFormat ? availability : null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,26 +39,21 @@ export default function Onboarding() {
       setError("Please choose a display name.");
       return;
     }
-    setSaving(true);
-    const free = await isUsernameAvailable(username);
-    if (!free) {
-      setAvailable(false);
+    if (!available) {
       setError("That handle was just taken. Try another.");
-      setSaving(false);
       return;
     }
-    const { error: err } = await createProfile({
-      id: user.id,
-      username,
-      display_name: displayName.trim(),
-      bio: bio.trim() || null,
-    });
-    if (err) {
-      setError(err);
+    setSaving(true);
+    try {
+      await createProfile({
+        username,
+        displayName: displayName.trim(),
+        bio: bio.trim() || undefined,
+      });
+    } catch (err) {
+      setError(convexErrorMessage(err));
       setSaving(false);
-      return;
     }
-    await refreshProfile();
   }
 
   return (
@@ -86,7 +78,7 @@ export default function Onboarding() {
               <AtSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
                 value={username}
-                onChange={(e) => checkHandle(e.target.value.toLowerCase())}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
                 placeholder="amelogius"
                 className="input-field pl-9 pr-9"
                 maxLength={20}
@@ -143,7 +135,7 @@ export default function Onboarding() {
 
           <button
             type="submit"
-            disabled={saving || !validFormat || !displayName.trim()}
+            disabled={saving || !validFormat || !displayName.trim() || !available}
             className="btn-neon flex w-full items-center justify-center gap-2 py-3"
           >
             {saving ? <Spinner size={18} /> : "Enter Chirp"}

@@ -3,21 +3,23 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Feather, Mail, Lock, Sparkles } from "lucide-react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { isConvexConfigured } from "@/lib/ConvexClientProvider";
 import { useAuth } from "@/lib/AuthContext";
+import { convexErrorMessage } from "@/lib/convexErrors";
 import { Spinner } from "@/components/Spinner";
 
 type Mode = "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { signIn } = useAuthActions();
   const { user, loading } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && user) router.replace("/");
@@ -26,37 +28,20 @@ export default function LoginPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setNotice(null);
-    if (!isSupabaseConfigured) {
-      setError("Supabase is not configured. See .env.local.example.");
+    if (!isConvexConfigured) {
+      setError("Convex is not configured. See .env.local.example.");
       return;
     }
     setSubmitting(true);
     try {
-      if (mode === "login") {
-        const { error: err } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (err) setError(err.message);
-        else router.replace("/");
-      } else {
-        const { data, error: err } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (err) {
-          setError(err.message);
-        } else if (data.session) {
-          // Email confirmation disabled -> straight into onboarding.
-          router.replace("/");
-        } else {
-          setNotice(
-            "Check your inbox to confirm your email, then sign in to finish setup."
-          );
-          setMode("login");
-        }
-      }
+      const formData = new FormData();
+      formData.set("email", email);
+      formData.set("password", password);
+      formData.set("flow", mode === "login" ? "signIn" : "signUp");
+      await signIn("password", formData);
+      router.replace("/");
+    } catch (err) {
+      setError(convexErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -108,7 +93,6 @@ export default function LoginPage() {
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
-          {notice && <p className="text-sm text-neon">{notice}</p>}
 
           <button
             type="submit"
@@ -132,7 +116,6 @@ export default function LoginPage() {
             onClick={() => {
               setMode(mode === "login" ? "register" : "login");
               setError(null);
-              setNotice(null);
             }}
             className="font-semibold text-neon transition hover:underline"
           >

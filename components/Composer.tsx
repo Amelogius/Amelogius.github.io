@@ -2,8 +2,11 @@
 
 import { useRef, useState } from "react";
 import { ImagePlus, Film, X, Sparkles } from "lucide-react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/lib/AuthContext";
-import { createChirp, uploadMedia } from "@/lib/db";
+import { convexErrorMessage } from "@/lib/convexErrors";
 import Avatar from "./Avatar";
 import GifPicker from "./GifPicker";
 import { Spinner } from "./Spinner";
@@ -17,6 +20,8 @@ type Props = {
 
 export default function Composer({ onPosted }: Props) {
   const { user, profile } = useAuth();
+  const createChirp = useMutation(api.chirps.create);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const [text, setText] = useState("");
   const [media, setMedia] = useState<{ url: string; isGif: boolean } | null>(null);
   const [localFile, setLocalFile] = useState<File | null>(null);
@@ -56,35 +61,38 @@ export default function Composer({ onPosted }: Props) {
     if (!user || !canPost) return;
     setPosting(true);
     try {
-      let mediaUrl = media?.url ?? null;
+      let mediaUrl = media?.url;
+      let storageId: Id<"_storage"> | undefined;
       let isGif = media?.isGif ?? false;
 
       if (localFile) {
-        const { url, error } = await uploadMedia(user.id, localFile);
-        if (error) {
-          alert(`Upload failed: ${error}`);
-          setPosting(false);
-          return;
+        const uploadUrl = await generateUploadUrl();
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": localFile.type },
+          body: localFile,
+        });
+        if (!result.ok) {
+          throw new Error("Upload failed.");
         }
-        mediaUrl = url;
+        const json = (await result.json()) as { storageId: Id<"_storage"> };
+        storageId = json.storageId;
+        mediaUrl = undefined;
         isGif = false;
       }
 
-      const { error } = await createChirp({
-        user_id: user.id,
-        text: text.trim() || null,
-        media_url: mediaUrl,
-        is_gif: isGif,
+      await createChirp({
+        text: text.trim() || undefined,
+        mediaUrl,
+        storageId,
+        isGif,
       });
-      if (error) {
-        alert(`Could not post: ${error}`);
-        setPosting(false);
-        return;
-      }
 
       setText("");
       clearMedia();
       onPosted?.();
+    } catch (error) {
+      alert(`Could not post: ${convexErrorMessage(error)}`);
     } finally {
       setPosting(false);
     }
