@@ -18,6 +18,7 @@ type AuthUser = {
 
 type AuthState = {
   loading: boolean;
+  isAuthenticated: boolean;
   user: AuthUser | null;
   profile: Profile | null;
   needsOnboarding: boolean;
@@ -30,7 +31,10 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const { signOut: authSignOut } = useAuthActions();
-  const userId = useQuery(api.users.current);
+  const userId = useQuery(
+    api.users.current,
+    isAuthenticated ? {} : "skip"
+  );
   const profile = useQuery(
     api.profiles.getByUserId,
     userId ? { userId } : "skip"
@@ -54,9 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthState = {
     loading,
+    isAuthenticated,
     user,
     profile: profile ?? null,
-    needsOnboarding: Boolean(user) && !loading && profile === null,
+    needsOnboarding:
+      isAuthenticated &&
+      Boolean(userId) &&
+      !profileLoading &&
+      profile === null,
     refreshProfile,
     signOut,
   };

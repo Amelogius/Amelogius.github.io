@@ -22,15 +22,15 @@ export default function AppShell({
   requireAuth = true,
   hideRightSidebar = false,
 }: Props) {
-  const { loading, user, needsOnboarding } = useAuth();
+  const { loading, isAuthenticated, needsOnboarding } = useAuth();
   const router = useRouter();
   const [compose, setCompose] = useState(false);
 
   useEffect(() => {
-    if (!loading && requireAuth && !user) {
+    if (!loading && requireAuth && !isAuthenticated) {
       router.replace("/login/");
     }
-  }, [loading, requireAuth, user, router]);
+  }, [loading, requireAuth, isAuthenticated, router]);
 
   if (!isConvexConfigured) {
     return <SetupNotice />;
@@ -44,7 +44,7 @@ export default function AppShell({
     );
   }
 
-  if (requireAuth && !user) {
+  if (requireAuth && !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size={36} />
@@ -68,7 +68,9 @@ export default function AppShell({
 
       <BottomNav onCompose={() => setCompose(true)} />
 
-      {compose && user && <ComposeModal onClose={() => setCompose(false)} />}
+      {compose && isAuthenticated && (
+        <ComposeModal onClose={() => setCompose(false)} />
+      )}
     </div>
   );
 }
