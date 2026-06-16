@@ -14,7 +14,7 @@ type Mode = "login" | "register";
 export default function LoginPage() {
   const router = useRouter();
   const { signIn } = useAuthActions();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, initializing } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,10 +22,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (isAuthenticated) {
       router.replace("/");
     }
-  }, [loading, isAuthenticated, router]);
+  }, [isAuthenticated, router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,7 +40,12 @@ export default function LoginPage() {
       formData.set("email", email);
       formData.set("password", password);
       formData.set("flow", mode === "login" ? "signIn" : "signUp");
-      await signIn("password", formData);
+      const result = await signIn("password", formData);
+      if (result.signingIn) {
+        router.replace("/");
+      } else {
+        setError("Sign in did not complete. Please try again.");
+      }
     } catch (err) {
       setError(convexErrorMessage(err));
     } finally {
@@ -48,7 +53,7 @@ export default function LoginPage() {
     }
   }
 
-  if (loading || isAuthenticated) {
+  if (initializing || isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size={36} />

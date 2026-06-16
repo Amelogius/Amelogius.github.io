@@ -22,15 +22,15 @@ export default function AppShell({
   requireAuth = true,
   hideRightSidebar = false,
 }: Props) {
-  const { loading, isAuthenticated, needsOnboarding } = useAuth();
+  const { loading, initializing, isAuthenticated, needsOnboarding } = useAuth();
   const router = useRouter();
   const [compose, setCompose] = useState(false);
 
   useEffect(() => {
-    if (!loading && requireAuth && !isAuthenticated) {
+    if (!initializing && requireAuth && !isAuthenticated) {
       router.replace("/login/");
     }
-  }, [loading, requireAuth, isAuthenticated, router]);
+  }, [initializing, requireAuth, isAuthenticated, router]);
 
   if (!isConvexConfigured) {
     return <SetupNotice />;

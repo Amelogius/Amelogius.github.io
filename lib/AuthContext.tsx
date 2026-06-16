@@ -17,6 +17,11 @@ type AuthUser = {
 };
 
 type AuthState = {
+  /** True while Convex Auth reads the stored session on startup. */
+  initializing: boolean;
+  /** True while user/profile queries are loading for an authenticated session. */
+  sessionLoading: boolean;
+  /** Either auth init or session data is still loading. */
   loading: boolean;
   isAuthenticated: boolean;
   user: AuthUser | null;
@@ -40,10 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId ? { userId } : "skip"
   );
 
-  const authLoading =
-    isLoading || (isAuthenticated && userId === undefined);
-  const profileLoading = Boolean(userId) && profile === undefined;
-  const loading = authLoading || profileLoading;
+  const initializing = isLoading;
+  const sessionLoading =
+    isAuthenticated &&
+    (userId === undefined ||
+      (userId !== null && profile === undefined));
+  const loading = initializing || sessionLoading;
 
   const refreshProfile = useCallback(async () => {
     // Convex queries refresh reactively; this exists for API compatibility.
@@ -57,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated && userId ? { id: userId } : null;
 
   const value: AuthState = {
+    initializing,
+    sessionLoading,
     loading,
     isAuthenticated,
     user,
@@ -64,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     needsOnboarding:
       isAuthenticated &&
       Boolean(userId) &&
-      !profileLoading &&
+      !sessionLoading &&
       profile === null,
     refreshProfile,
     signOut,
