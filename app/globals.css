@@ -12,30 +12,34 @@
 
 html,
 body {
-  background-color: #0b0f19;
+  background-color: #05070d;
   color: #e6edf6;
 }
 
 body {
   font-family: var(--font-sans);
   min-height: 100vh;
-  /* Subtle cyberpunk glow backdrop. */
+  /* Deep-dark base; the drifting neon blobs live in <NeonBackdrop />. */
   background-image:
-    radial-gradient(60rem 60rem at 110% -10%, rgba(138, 43, 226, 0.18), transparent 60%),
-    radial-gradient(50rem 50rem at -10% 10%, rgba(0, 240, 255, 0.12), transparent 55%),
-    radial-gradient(40rem 40rem at 50% 120%, rgba(138, 43, 226, 0.1), transparent 60%);
+    radial-gradient(70rem 70rem at 110% -10%, rgba(255, 45, 170, 0.1), transparent 60%),
+    radial-gradient(55rem 55rem at -10% 15%, rgba(255, 122, 24, 0.08), transparent 55%),
+    radial-gradient(45rem 45rem at 50% 120%, rgba(138, 43, 226, 0.1), transparent 60%);
   background-attachment: fixed;
 }
 
 @layer components {
   .glass {
-    @apply backdrop-blur-md bg-slate-900/60 border border-slate-800;
+    @apply backdrop-blur-md bg-slate-950/60 border border-slate-800;
   }
   .glass-strong {
-    @apply backdrop-blur-xl bg-slate-900/80 border border-slate-800;
+    @apply backdrop-blur-xl bg-slate-950/75 border border-slate-800;
   }
   .neon-text {
-    @apply bg-neon-grad bg-clip-text text-transparent;
+    @apply bg-party-grad bg-clip-text text-transparent animate-gradient-x;
+    background-size: 300% 300%;
+  }
+  .fire-text {
+    @apply bg-fire-grad bg-clip-text text-transparent;
   }
   .btn-neon {
     @apply rounded-full bg-neon-grad font-semibold text-slate-950
@@ -69,11 +73,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.18);
+  background: linear-gradient(180deg, rgba(255, 45, 170, 0.35), rgba(255, 122, 24, 0.35));
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.35);
+  background: linear-gradient(180deg, rgba(255, 45, 170, 0.6), rgba(255, 122, 24, 0.6));
 }
 
 /* Skeleton shimmer used by loading states */

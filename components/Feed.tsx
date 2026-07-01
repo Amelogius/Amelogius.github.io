@@ -113,7 +113,7 @@ function TabButton({
       {icon}
       {label}
       {active && (
-        <span className="absolute bottom-0 h-1 w-16 rounded-full bg-neon-grad shadow-neon" />
+        <span className="absolute bottom-0 h-1 w-16 rounded-full bg-fire-grad shadow-hotpink" />
       )}
     </button>
   );

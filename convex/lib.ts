@@ -37,6 +37,10 @@ export async function decorateChirps(
         .query("likes")
         .withIndex("by_chirp", (q) => q.eq("chirpId", chirp._id))
         .collect();
+      const comments = await ctx.db
+        .query("comments")
+        .withIndex("by_chirp", (q) => q.eq("chirpId", chirp._id))
+        .collect();
 
       return {
         id: chirp._id,
@@ -47,6 +51,7 @@ export async function decorateChirps(
         created_at: new Date(chirp._creationTime).toISOString(),
         author: author ? toProfile(author) : undefined,
         like_count: likes.length,
+        comment_count: comments.length,
         liked_by_me: currentUserId
           ? likes.some((like) => like.userId === currentUserId)
           : false,

@@ -18,7 +18,17 @@ export type Chirp = {
   // Joined / derived fields used by the UI.
   author?: Profile;
   like_count?: number;
+  comment_count?: number;
   liked_by_me?: boolean;
+};
+
+export type Comment = {
+  id: string;
+  user_id: string;
+  chirp_id: string;
+  text: string;
+  created_at: string;
+  author?: Profile;
 };
 
 export type Gif = {

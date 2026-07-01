@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as chirps from "../chirps.js";
+import type * as comments from "../comments.js";
 import type * as files from "../files.js";
 import type * as follows from "../follows.js";
 import type * as http from "../http.js";
@@ -27,6 +28,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   chirps: typeof chirps;
+  comments: typeof comments;
   files: typeof files;
   follows: typeof follows;
   http: typeof http;

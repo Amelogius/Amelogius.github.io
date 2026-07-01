@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/ConvexClientProvider";
 import { AuthProvider } from "@/lib/AuthContext";
+import NeonBackdrop from "@/components/NeonBackdrop";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -30,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
+        <NeonBackdrop />
         <ConvexClientProvider>
           <AuthProvider>{children}</AuthProvider>
         </ConvexClientProvider>

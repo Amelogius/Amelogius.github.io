@@ -47,6 +47,24 @@ export const getByUser = query({
   },
 });
 
+export const search = query({
+  args: {
+    query: v.string(),
+    currentUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, { query: searchQuery, currentUserId }) => {
+    const q = searchQuery.trim();
+    if (!q) return [];
+
+    const results = await ctx.db
+      .query("chirps")
+      .withSearchIndex("search_text", (s) => s.search("text", q))
+      .take(50);
+
+    return decorateChirps(ctx, results, currentUserId ?? null);
+  },
+});
+
 export const create = mutation({
   args: {
     text: v.optional(v.string()),
@@ -91,6 +109,13 @@ export const remove = mutation({
       .withIndex("by_chirp", (q) => q.eq("chirpId", chirpId))
       .collect();
     await Promise.all(likes.map((like) => ctx.db.delete(like._id)));
+
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_chirp", (q) => q.eq("chirpId", chirpId))
+      .collect();
+    await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
+
     await ctx.db.delete(chirpId);
   },
 });

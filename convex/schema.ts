@@ -21,7 +21,9 @@ export default defineSchema({
     text: v.optional(v.string()),
     mediaUrl: v.optional(v.string()),
     isGif: v.boolean(),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .searchIndex("search_text", { searchField: "text" }),
 
   follows: defineTable({
     followerId: v.id("users"),
@@ -37,4 +39,12 @@ export default defineSchema({
   })
     .index("by_user_chirp", ["userId", "chirpId"])
     .index("by_chirp", ["chirpId"]),
+
+  comments: defineTable({
+    userId: v.id("users"),
+    chirpId: v.id("chirps"),
+    text: v.string(),
+  })
+    .index("by_chirp", ["chirpId"])
+    .index("by_user", ["userId"]),
 });

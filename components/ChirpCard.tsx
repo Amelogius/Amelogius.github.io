@@ -10,6 +10,7 @@ import type { Chirp } from "@/lib/types";
 import { useAuth } from "@/lib/AuthContext";
 import { timeAgo } from "@/lib/time";
 import Avatar from "./Avatar";
+import CommentSection from "./CommentSection";
 
 type Props = {
   chirp: Chirp;
@@ -26,6 +27,7 @@ export default function ChirpCard({ chirp, onDeleted }: Props) {
   const [retweeted, setRetweeted] = useState(false);
   const [popKey, setPopKey] = useState(0);
   const [deleting, setDeleting] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const author = chirp.author;
   const isMine = user?.id === chirp.user_id;
@@ -55,7 +57,7 @@ export default function ChirpCard({ chirp, onDeleted }: Props) {
 
   return (
     <article
-      className={`group relative flex gap-3 border-b border-slate-800/60 px-4 py-4 transition-colors hover:bg-slate-900/40 ${
+      className={`group relative flex gap-3 border-b border-slate-800/60 px-4 py-4 transition-all duration-300 hover:bg-slate-900/40 hover:shadow-[inset_2px_0_0_0_rgba(255,45,170,0.6),inset_0_0_60px_rgba(255,45,170,0.04)] ${
         deleting ? "opacity-40" : "animate-fade-up"
       }`}
     >
@@ -106,10 +108,20 @@ export default function ChirpCard({ chirp, onDeleted }: Props) {
         )}
 
         <div className="mt-3 flex max-w-md items-center justify-between text-slate-500">
-          <button className="group/btn flex items-center gap-2 text-sm transition hover:text-neon">
+          <button
+            onClick={() => setShowComments((s) => !s)}
+            className={`group/btn flex items-center gap-2 text-sm transition hover:text-neon ${
+              showComments ? "text-neon" : ""
+            }`}
+          >
             <span className="rounded-full p-2 transition group-hover/btn:bg-neon/10">
-              <MessageCircle className="h-[18px] w-[18px]" />
+              <MessageCircle
+                className={`h-[18px] w-[18px] ${showComments ? "fill-neon/20" : ""}`}
+              />
             </span>
+            {(chirp.comment_count ?? 0) > 0 && (
+              <span>{chirp.comment_count}</span>
+            )}
           </button>
 
           <button
@@ -146,6 +158,8 @@ export default function ChirpCard({ chirp, onDeleted }: Props) {
             </span>
           </button>
         </div>
+
+        {showComments && <CommentSection chirpId={chirp.id} />}
       </div>
     </article>
   );
